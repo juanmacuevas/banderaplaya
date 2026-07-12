@@ -3,9 +3,6 @@ pages_build_output_dir = "public"
 compatibility_date = "2026-07-12"
 
 # Caches /api/flags during attended hours (see functions/_lib/schedule.js).
-# Local dev works with this placeholder id (wrangler emulates KV locally).
-# Before a real deploy: `wrangler login` then
-# `wrangler kv namespace create FLAG_CACHE` and paste the real id here.
 [[kv_namespaces]]
 binding = "FLAG_CACHE"
-id = "local-placeholder"
+id = "abd2161517eb4a11805f4813d1d6e3ed"
