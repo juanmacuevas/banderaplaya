@@ -1,0 +1,80 @@
+[
+  {
+    "id": 329,
+    "name": "Bikinis",
+    "lat": 43.467471,
+    "lng": -3.767763
+  },
+  {
+    "id": 1198,
+    "name": "Bikinis II",
+    "lat": 43.467919,
+    "lng": -3.7721
+  },
+  {
+    "id": 282,
+    "name": "Camello",
+    "lat": 43.469292,
+    "lng": -3.775714
+  },
+  {
+    "id": 278,
+    "name": "Castañeda (Segunda Sardinero)",
+    "lat": 43.478076,
+    "lng": -3.787774
+  },
+  {
+    "id": 469,
+    "name": "El Bocal",
+    "lat": 43.490483,
+    "lng": -3.819787
+  },
+  {
+    "id": 281,
+    "name": "La Concha Santander",
+    "lat": 43.472145,
+    "lng": -3.780647
+  },
+  {
+    "id": 283,
+    "name": "La Magdalena",
+    "lat": 43.467077,
+    "lng": -3.775946
+  },
+  {
+    "id": 164,
+    "name": "La Maruca",
+    "lat": 43.481362,
+    "lng": -3.835163
+  },
+  {
+    "id": 280,
+    "name": "La Primera Sardinero",
+    "lat": 43.473097,
+    "lng": -3.782265
+  },
+  {
+    "id": 367,
+    "name": "Los Peligros",
+    "lat": 43.464725,
+    "lng": -3.780077
+  },
+  {
+    "id": 131,
+    "name": "Mataleñas",
+    "lat": 43.485742,
+    "lng": -3.788281
+  },
+  {
+    "id": 279,
+    "name": "Piquio",
+    "lat": 43.475905,
+    "lng": -3.78616
+  },
+  {
+    "id": 36,
+    "name": "Virgen Del Mar",
+    "lat": 43.476978,
+    "lng": -3.876746
+  }
+]

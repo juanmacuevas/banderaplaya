@@ -1,0 +1,13 @@
+{
+  "name": "banderaplaya",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public",
+    "scrape": "node scripts/scrape-beaches.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.4.0"
+  }
+}

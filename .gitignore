@@ -1,0 +1,4 @@
+node_modules/
+.wrangler/
+.gstack/
+.DS_Store
