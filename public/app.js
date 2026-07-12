@@ -38,6 +38,10 @@ function popupText(beach) {
   const lines = [`<strong>${beach.name}</strong>`];
   lines.push(`Bandera: ${beach.label ?? "Cargando…"}`);
 
+  if (beach.frozen) {
+    lines.push(`<em>Fuera de horario — última bandera conocida</em>`);
+  }
+
   const medusas = yesNo(beach.medusas);
   if (medusas) lines.push(`Medusas: ${medusas}`);
 

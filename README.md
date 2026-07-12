@@ -1,7 +1,9 @@
 # banderaplaya
 
 A one-page map of Santander's beaches, showing today's Cruz Roja flag status
-(green/yellow/red) live. Deployed at [banderaplaya.es](https://banderaplaya.es).
+(green/yellow/red) live. Live at
+[banderaplaya.pages.dev](https://banderaplaya.pages.dev); `banderaplaya.es`
+pending DNS (see "Custom domain" below).
 
 ## How it works
 
@@ -16,7 +18,8 @@ change at different rates:
   staffs the beaches. Fetched live, but rate-limited (see below).
 - **Whether it's worth asking at all** — outside attended hours the flag
   is never meaningful (Cruz Roja reports "no info" for every beach then,
-  confirmed by hand), so nothing is fetched.
+  confirmed by hand), so nothing is fetched — the last known flags are
+  shown frozen instead.
 
 Cruz Roja's site sends no CORS headers, so a browser can't call it
 directly — requests go through the one backend piece in this project,
@@ -26,19 +29,23 @@ all 13 beaches in parallel and returns one merged JSON array.
 
 ### Not hammering Cruz Roja's server
 
-Two rules, both in `functions/api/flags.js`:
+Two rules, both in `functions/api/flags.js`, both backed by one KV
+namespace (`FLAG_CACHE`):
 
 1. **Outside attended hours (roughly 10:00–20:30, Europe/Madrid, buffered
    around the beaches' actual ~11:30–19:30 schedule) — skip Cruz Roja
    entirely.** `functions/_lib/schedule.js` answers this from the clock
-   alone, no network call. Every beach reports `"Fuera de horario"`
-   ("outside hours") instead of a color.
-2. **During attended hours, cache in KV for 5 minutes** (`CACHE_TTL_SECONDS`
-   in `flags.js`). Whichever visitor's request happens to miss the cache
-   pays the ~1s Cruz Roja round-trip and refills it for everyone else;
-   nothing runs on a schedule, so if nobody visits, nothing gets fetched.
-   Overlapping requests during a 5-minute window all read the same cached
-   copy instead of each re-fetching.
+   alone, no network call. Instead of showing "no data", the response is
+   whatever the flags last said before closing (`flags:last-known` in KV,
+   marked `frozen: true`) — falling back to a genuine
+   `"Fuera de horario"` only if nothing has ever been fetched (e.g. right
+   after a fresh deploy).
+2. **During attended hours, cache live results in KV for 5 minutes**
+   (`CACHE_TTL_SECONDS` in `flags.js`, key `flags:cache`). Whichever
+   visitor's request happens to miss the cache pays the ~1s Cruz Roja
+   round-trip and refills it for everyone else — and also updates
+   `flags:last-known` for the next time hours close. Nothing runs on a
+   schedule, so if nobody visits, nothing gets fetched.
 
 ### Sequence on page load
 
@@ -86,43 +93,25 @@ placeholder id in `wrangler.toml` — no Cloudflare account needed for this.
 
 ## Deploying (Cloudflare Pages)
 
-One-time setup:
-
-```sh
-npx wrangler login
-npx wrangler kv namespace create FLAG_CACHE
-```
-
-The second command prints a real namespace id — paste it into
-`wrangler.toml` in place of `"local-placeholder"`. Without this step the
-site still works, it just never caches (every request during attended
-hours hits Cruz Roja directly).
-
-Then, to deploy:
+Already set up: logged into Cloudflare, `FLAG_CACHE` KV namespace created
+(its real id lives in `wrangler.toml`), Pages project `banderaplaya`
+created. To ship a change:
 
 ```sh
 npm run deploy   # wrangler pages deploy public
 ```
 
-This deploys the static site and `/api/flags` together as one Cloudflare
-Pages project. (Alternatively, connect the repo in the Cloudflare dashboard
-for git-push deploys — build output directory `public`, no build command;
-you'd add the KV binding in the dashboard's Functions settings instead of
-`wrangler.toml`.)
+This deploys the static site and `/api/flags` together. (Redoing this on a
+fresh clone/account: `wrangler login`, `wrangler kv namespace create
+FLAG_CACHE`, paste the printed id into `wrangler.toml`, `wrangler pages
+project create banderaplaya`, then `npm run deploy`.)
 
 ### Custom domain (banderaplaya.es)
 
-Once deployed, attach the domain either via the Cloudflare dashboard
-(Pages project → Custom domains → Add) or:
-
-```sh
-npx wrangler pages domain add banderaplaya.es
-```
-
-This requires `banderaplaya.es`'s nameservers to point at Cloudflare
-first — if that isn't already set up, the dashboard flow walks through
-it. The project folder is already named `banderaplaya` to match, so no
-rename needed there.
+Not yet attached — `banderaplaya.es`'s nameservers aren't pointed at
+Cloudflare yet, which has to happen at the registrar first. Once they are,
+attach the domain via the Cloudflare dashboard (Pages project → Custom
+domains → Add) or `wrangler pages domain add banderaplaya.es`.
 
 ## Updating the beach list
 
@@ -163,7 +152,8 @@ the parsing code:
   has a documented manual override for it.
 - **Outside attended hours, the flag is "blanca"** (no data) for every
   beach — confirmed by hand. `functions/_lib/schedule.js` predicts this
-  from the clock instead of asking Cruz Roja to find out.
+  from the clock instead of asking Cruz Roja to find out, and the app
+  shows the frozen last-known flag instead of that "no data" state.
 
 ## Source
 
