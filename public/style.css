@@ -88,9 +88,9 @@ body {
 
 .jellyfish-badge {
   position: absolute;
-  top: -4px;
-  right: -6px;
-  font-size: 14px;
+  top: -7px;
+  right: -9px;
+  font-size: 20px;
   line-height: 1;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
 }

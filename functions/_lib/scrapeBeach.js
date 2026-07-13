@@ -42,22 +42,50 @@ function extractCoberturaDates(html) {
   return { desde: values[0] ?? null, hasta: values[1] ?? null };
 }
 
+// Spain's actual coordinate range (mainland + Canary + Balearic islands),
+// deliberately tighter than the global -90/90, -180/180 range — every
+// beach in this dataset is Spanish, so a value outside this box is corrupt
+// even if it's a syntactically valid coordinate somewhere else on Earth.
+const SPAIN_LAT = { min: 27, max: 44 };
+const SPAIN_LNG = { min: -19, max: 5 };
+
+// Cruz Roja's own page has (at least) two flavors of malformed coordinate:
+// extra stray dots (e.g. "4.346.791.917.533.990", parses as NaN) and a
+// dropped decimal point (e.g. "-4353973" instead of "-4.353973" — parses
+// fine but lands in the Sahara). Both are recoverable from the same
+// insight: the digits themselves are intact, only the decimal point's
+// position is wrong. Stripping all dots and retrying each possible
+// insertion point until one lands inside Spain recovers the original value
+// in both cases — losing a beach's map marker entirely is worse than a
+// coordinate reconstructed this way.
+function recoverCoordinate(raw, { min, max }) {
+  const sign = raw.startsWith("-") ? "-" : "";
+  const digits = raw.replace(/[-.]/g, "");
+  for (let i = 1; i < digits.length; i++) {
+    const candidate = Number(`${sign}${digits.slice(0, i)}.${digits.slice(i)}`);
+    if (candidate >= min && candidate <= max) return candidate;
+  }
+  return null;
+}
+
 function extractLatLng(html) {
   // Absent entirely (no <script> map block at all) on a small minority of
   // beaches — not just a null/blank value, the block doesn't exist.
   const m = html.match(/new google\.maps\.LatLng\(([\-\d.]+),\s*([\-\d.]+)\)/);
   if (!m) return null;
-  const lat = Number(m[1]);
-  const lng = Number(m[2]);
-  // Cruz Roja's own page has more than one flavor of malformed coordinate:
-  // extra stray dots (e.g. "4.346.791.917.533.990", parses as NaN), and a
-  // dropped decimal point (e.g. "-4353973" instead of "-4.353973", parses
-  // fine but lands in the Sahara). Both need catching — a single bad point
-  // silently breaks the whole map's fitBounds() — so this validates actual
-  // lat/lng range, not just finiteness.
-  const valid =
-    Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lng) && lng >= -180 && lng <= 180;
-  return valid ? { lat, lng } : null;
+
+  const [rawLat, rawLng] = [m[1], m[2]];
+  let lat = Number(rawLat);
+  let lng = Number(rawLng);
+
+  if (!(lat >= SPAIN_LAT.min && lat <= SPAIN_LAT.max)) {
+    lat = recoverCoordinate(rawLat, SPAIN_LAT);
+  }
+  if (!(lng >= SPAIN_LNG.min && lng <= SPAIN_LNG.max)) {
+    lng = recoverCoordinate(rawLng, SPAIN_LNG);
+  }
+
+  return lat != null && lng != null ? { lat, lng } : null;
 }
 
 function extractPhotoUrl(html) {
