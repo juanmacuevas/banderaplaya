@@ -40,7 +40,63 @@ async function scrapeSlice(ids) {
   return updates;
 }
 
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+    },
+  });
+}
+
+// api.banderaplaya.es — mirrors functions/api/beaches/ from the Pages
+// project, so the custom domain attached to this Worker actually serves
+// something. GET /beaches reads the same cache the scheduled handler
+// above writes; GET /beaches/:id is an on-demand live scrape, uncached.
+async function handleFetch(request, env) {
+  const url = new URL(request.url);
+  const parts = url.pathname.split("/").filter(Boolean);
+
+  if (parts[0] !== "beaches") {
+    return json({ error: "not_found" }, 404);
+  }
+
+  if (parts.length === 1) {
+    const cached = await env.BEACHES_CACHE.get(CACHE_KEY, "json");
+    const scraped = cached?.beaches ?? {};
+    const beaches = manifest.map(({ id, name }) => scraped[id] ?? { id, name, status: "pending" });
+    return json({
+      beaches,
+      scrapedCount: Object.keys(scraped).length,
+      total: manifest.length,
+      updatedAt: cached?.updatedAt ?? null,
+    });
+  }
+
+  const id = Number(parts[1]);
+  if (!Number.isInteger(id) || id <= 0) {
+    return json({ error: "invalid_id" }, 400);
+  }
+  let html;
+  try {
+    html = await fetchBeachHtml(id);
+  } catch (err) {
+    return json({ error: "upstream_unreachable" }, 502);
+  }
+  const beach = scrapeBeach(html);
+  if (!beach.name) {
+    return json({ error: "not_found" }, 404);
+  }
+  return json({ id, ...beach });
+}
+
 export default {
+  async fetch(request, env) {
+    return handleFetch(request, env);
+  },
+
   async scheduled(event, env, ctx) {
     if (!isNationalAttendedHours()) return;
 
