@@ -142,7 +142,10 @@ async function main() {
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(map);
 
-  const { beaches } = await fetch("/api/beaches").then((r) => r.json());
+  // Kicked off from an inline <script> at the top of <head>, in parallel
+  // with fonts/CSS/Leaflet, rather than starting fresh once this deferred
+  // script finally runs at the end of that chain.
+  const { beaches } = await window.__beachesFetch;
   // A beach only has coordinates once worker-scraper has fetched it at
   // least once (or never, for the handful Cruz Roja itself has no map data
   // for) — no marker to place until then.

@@ -4,6 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Banderas de Playa — España</title>
+    <script>
+      // Fired as early as possible, in parallel with fonts/CSS/Leaflet —
+      // otherwise this waits behind the whole render-blocking chain below.
+      window.__beachesFetch = fetch("/api/beaches").then((r) => r.json());
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -63,6 +68,7 @@
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
+      defer
     ></script>
     <script src="app.js" defer></script>
   </body>
