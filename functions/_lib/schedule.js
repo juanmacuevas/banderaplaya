@@ -21,3 +21,16 @@ export function isAttendedHours(date = new Date()) {
   const h = madridHourFraction(date);
   return h >= ATTENDED_START_HOUR && h < ATTENDED_END_HOUR;
 }
+
+// National coverage window (used by the nationwide scraper worker, as
+// opposed to the Santander-only window above used by /api/flags). Derived
+// from Cruz Roja's own "Horario" field across all 192 nationwide beaches:
+// earliest observed start 09:00, latest observed end 21:00 — padded 30min
+// each side so a beach whose window sits right at the edge isn't skipped.
+const NATIONAL_ATTENDED_START_HOUR = 8.5; // 08:30
+const NATIONAL_ATTENDED_END_HOUR = 21.5; // 21:30
+
+export function isNationalAttendedHours(date = new Date()) {
+  const h = madridHourFraction(date);
+  return h >= NATIONAL_ATTENDED_START_HOUR && h < NATIONAL_ATTENDED_END_HOUR;
+}

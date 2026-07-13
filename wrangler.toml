@@ -6,3 +6,10 @@ compatibility_date = "2026-07-12"
 [[kv_namespaces]]
 binding = "FLAG_CACHE"
 id = "abd2161517eb4a11805f4813d1d6e3ed"
+
+# National beach cache, written by worker-scraper/ on a cron trigger, read
+# here by /api/beaches. Pages Functions can't have cron triggers themselves,
+# hence the separate standalone Worker.
+[[kv_namespaces]]
+binding = "BEACHES_CACHE"
+id = "485813a5c0c24b3b9d73ea68c14252f7"

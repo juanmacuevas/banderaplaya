@@ -1,0 +1,14 @@
+name = "banderaplaya-scraper"
+main = "src/index.js"
+compatibility_date = "2026-07-12"
+
+# Every 2 minutes; src/index.js gates actual work to isNationalAttendedHours()
+# so most ticks outside that window are a single KV read and a no-op.
+[triggers]
+crons = ["*/2 * * * *"]
+
+# Same namespace bound as BEACHES_CACHE in the root wrangler.toml — this
+# worker writes, functions/api/beaches/ reads.
+[[kv_namespaces]]
+binding = "BEACHES_CACHE"
+id = "485813a5c0c24b3b9d73ea68c14252f7"

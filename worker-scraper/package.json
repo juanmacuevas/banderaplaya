@@ -1,0 +1,12 @@
+{
+  "name": "banderaplaya-scraper",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.4.0"
+  }
+}
