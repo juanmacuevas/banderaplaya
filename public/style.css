@@ -78,8 +78,21 @@ body {
   min-height: 0;
 }
 
-.flag-icon svg {
+.flag-icon-wrap {
+  position: relative;
+}
+
+.flag-icon-wrap svg {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.jellyfish-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
 }
 
 #legend {
@@ -164,14 +177,93 @@ body {
   flex: 0 0 auto;
 }
 
-.leaflet-popup-content-wrapper {
-  border-radius: 12px;
+#beach-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(10, 30, 38, 0.35);
 }
 
-.leaflet-popup-content {
+.beach-panel {
+  position: fixed;
+  z-index: 1001;
+  background: #fff;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
   font-family: "Nunito Sans", system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.5;
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.beach-panel-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: #eef2f3;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.beach-panel-close:hover,
+.beach-panel-close:focus-visible {
+  background: #e0e6e8;
+}
+
+#beach-panel-content {
+  padding: 18px 40px 18px 18px;
+  max-height: inherit;
+  overflow-y: auto;
+}
+
+/* Mobile: bottom sheet, doesn't move or pan the map underneath it. */
+@media (max-width: 640px) {
+  .beach-panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 65vh;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+  }
+
+  .beach-panel.open {
+    transform: translateY(0);
+  }
+}
+
+/* Desktop: floating card, horizontally centered, still fixed — same "never
+   pans the map" behavior as mobile, just shaped like a card instead of a
+   sheet. Backdrop stays transparent here (still catches outside-clicks to
+   dismiss) — a full dim scrim reads as a heavy modal for what's really a
+   small info card, and fights with browsing other beaches on the map. */
+@media (min-width: 641px) {
+  #beach-panel-backdrop {
+    background: transparent;
+  }
+
+  .beach-panel {
+    left: 50%;
+    bottom: 28px;
+    width: 90%;
+    max-width: 360px;
+    max-height: 70vh;
+    border-radius: 16px;
+    transform: translate(-50%, 16px);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .beach-panel.open {
+    transform: translate(-50%, 0);
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .beach-popup h2 {
@@ -217,7 +309,34 @@ body {
 .status-amarilla::before { background: #f1c40f; }
 .status-roja::before { background: #e74c3c; }
 
-.popup-observations {
+.popup-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 9px;
+}
+
+.popup-badge {
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: #eaf6f2;
+  color: var(--sea-deep);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.popup-notice {
+  margin: 0 0 8px;
+  border-radius: 7px;
+  padding: 6px 8px;
+  background: #fbeee0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.popup-observations,
+.popup-campaign {
   margin: 0 0 8px;
   border-radius: 7px;
   padding: 6px 8px;
