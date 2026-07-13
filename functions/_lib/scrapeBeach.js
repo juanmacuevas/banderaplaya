@@ -46,7 +46,18 @@ function extractLatLng(html) {
   // Absent entirely (no <script> map block at all) on a small minority of
   // beaches — not just a null/blank value, the block doesn't exist.
   const m = html.match(/new google\.maps\.LatLng\(([\-\d.]+),\s*([\-\d.]+)\)/);
-  return m ? { lat: Number(m[1]), lng: Number(m[2]) } : null;
+  if (!m) return null;
+  const lat = Number(m[1]);
+  const lng = Number(m[2]);
+  // Cruz Roja's own page has more than one flavor of malformed coordinate:
+  // extra stray dots (e.g. "4.346.791.917.533.990", parses as NaN), and a
+  // dropped decimal point (e.g. "-4353973" instead of "-4.353973", parses
+  // fine but lands in the Sahara). Both need catching — a single bad point
+  // silently breaks the whole map's fitBounds() — so this validates actual
+  // lat/lng range, not just finiteness.
+  const valid =
+    Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+  return valid ? { lat, lng } : null;
 }
 
 function extractPhotoUrl(html) {
