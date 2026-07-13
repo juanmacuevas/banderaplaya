@@ -4,23 +4,11 @@
 
 const DETAIL_URL = "https://www.cruzroja.es/appjv/consPlayas/fichaPlaya.do";
 
-// Hardcoded to Santander for v1. Expanding to other municipios means storing
-// these per-beach in beaches.json and passing them through instead.
-const DETAIL_FORM = {
-  action: "noadaptadas",
-  aplicacion: "consultaPlayas",
-  autonomia: "Cantabria",
-  autonomia_id: "6",
-  provincia: "CANTABRIA",
-  provincia_id: "39",
-  municipio: "SANTANDER",
-  municipio_id: "75",
-  playa: "",
-  playa_id: "",
-};
-
 export async function fetchBeachHtml(id) {
-  const body = new URLSearchParams({ ...DETAIL_FORM, id: String(id) });
+  // Verified directly: the server only looks at `id` — the autonomia/
+  // provincia/municipio/etc. fields the site's own form also submits are
+  // accepted but ignored, so there's no need to track them per beach.
+  const body = new URLSearchParams({ id: String(id) });
   const res = await fetch(DETAIL_URL, {
     method: "POST",
     headers: {

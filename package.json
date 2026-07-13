@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler pages dev public",
-    "deploy": "wrangler pages deploy public",
-    "scrape": "node scripts/scrape-beaches.js"
+    "deploy": "wrangler pages deploy public"
   },
   "devDependencies": {
     "wrangler": "^4.4.0"

@@ -1,13 +1,7 @@
-// Regex-based extraction from Cruz Roja's fichaPlaya.do HTML. The markup is
-// old, fixed-layout, non-templated HTML, so plain regex is simpler and more
-// robust here than pulling in a DOM parser for a Workers runtime.
-
-const STATUS_LABELS = {
-  verde: "Verde",
-  amarilla: "Amarilla",
-  roja: "Roja",
-  unknown: "Sin datos",
-};
+// Shared low-level field-extraction primitives for Cruz Roja's fichaPlaya.do
+// HTML, used by scrapeBeach.js. The markup is old, fixed-layout,
+// non-templated HTML, so plain regex is simpler and more robust here than
+// pulling in a DOM parser for a Workers runtime.
 
 // Cruz Roja's flag-color image filenames/alt text use inconsistent Spanish
 // ("ico_band_amarill.gif" / alt "Amarilla", "ico_band_roja.gif" / alt "Roja"
@@ -51,29 +45,8 @@ export function extractField(html, label) {
   return m ? m[1].trim() : null;
 }
 
-function extractObservaciones(html) {
-  const m = html.match(/<li class="fichaPlayaObs">([^<]*)<\/li>/);
-  return m ? m[1].trim() : null;
-}
-
 export function toBool(value) {
   if (value === "Sí") return true;
   if (value === "No") return false;
   return null;
-}
-
-export function parseBeachDetail(html) {
-  const status = extractStatus(html);
-  return {
-    status,
-    label: STATUS_LABELS[status],
-    medusas: toBool(extractField(html, "Medusas")),
-    horario: extractField(html, "Horario"),
-    servicioAyudaBano: toBool(extractField(html, "Servicio Ayuda Baño")),
-    atencion: extractField(html, "Atención"),
-    torresVigilancia: extractField(html, "Torres de Vigilancia"),
-    coberturaDesde: extractField(html, "Cobertura desde"),
-    coberturaHasta: extractField(html, "Hasta"),
-    observaciones: extractObservaciones(html),
-  };
 }

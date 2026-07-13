@@ -1,6 +1,6 @@
 // Full-field extractor for Cruz Roja's fichaPlaya.do HTML — the complete
-// schema (24 fields + 2 optional sub-sections), as opposed to parseBeach.js
-// which only pulls the handful of fields the live Santander flag map needs.
+// schema (24 fields + 2 optional sub-sections). Builds on the low-level
+// primitives in parseBeach.js.
 //
 // Schema derived by diffing 192/192 nationwide beach pages (see
 // scratchpad research): 2 independent optional sections (campaign, ~9/192;

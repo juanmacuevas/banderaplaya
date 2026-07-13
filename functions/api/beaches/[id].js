@@ -1,9 +1,9 @@
 // Cloudflare Pages Function: GET /api/beaches/:id
 //
 // On-demand scraper for a single Cruz Roja beach, returning the full field
-// set (see scrapeBeach.js). Separate from /api/flags, which stays
-// deliberately lean/cached — this one is for ad-hoc lookups and study, so
-// it fetches live every time and isn't cached or rate-limited here.
+// set (see scrapeBeach.js). Separate from /api/beaches, which serves the
+// worker-scraper/-maintained cache for all 192 beaches — this one fetches
+// live every time, uncached, for ad-hoc lookups and study.
 
 import { fetchBeachHtml } from "../../_lib/cruzRoja.js";
 import { scrapeBeach } from "../../_lib/scrapeBeach.js";
