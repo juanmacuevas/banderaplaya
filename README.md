@@ -1,170 +1,165 @@
 # banderaplaya
 
-A one-page map of Santander's beaches, showing today's Cruz Roja flag status
-(green/yellow/red) live. Live at
-[banderaplaya.pages.dev](https://banderaplaya.pages.dev); `banderaplaya.es`
-pending DNS (see "Custom domain" below).
+A one-page map of Santander's beaches showing today's Cruz Roja flag —
+green, yellow, or red — live.
 
-## How it works
+Live at [banderaplaya.pages.dev](https://banderaplaya.pages.dev).
+`banderaplaya.es` is the intended domain but isn't attached yet (see
+"Custom domain" below).
 
-There's no database. Three kinds of data, handled differently because they
-change at different rates:
+## What it does, simply
 
-- **Where the beaches are** (`public/beaches.json`) — name + lat/lng for
-  Santander's 13 beaches. Never changes day to day, so it's scraped once
-  and committed to the repo instead of being fetched on every visit.
-- **What the flag says right now** (medusas, horario, etc.) — genuinely
-  changes through the day, but only during the hours Cruz Roja actually
-  staffs the beaches. Fetched live, but rate-limited (see below).
-- **Whether it's worth asking at all** — outside attended hours the flag
-  is never meaningful (Cruz Roja reports "no info" for every beach then,
-  confirmed by hand), so nothing is fetched — the last known flags are
-  shown frozen instead.
+Cruz Roja (the Spanish Red Cross) staffs Santander's 13 beaches and
+publishes a flag for each one on their own website. This project:
 
-Cruz Roja's site sends no CORS headers, so a browser can't call it
-directly — requests go through the one backend piece in this project,
-`functions/api/flags.js` (a Cloudflare Pages Function). The browser calls
-it once; it decides whether to bother Cruz Roja at all, and if so, fetches
-all 13 beaches in parallel and returns one merged JSON array.
+1. Shows all 13 beaches on a map.
+2. Asks Cruz Roja's site what each flag says right now, and colors each
+   marker to match.
+3. Outside the hours beaches are staffed (roughly 10:00–20:30), there's no
+   real flag to report — so instead of showing "no data", it shows
+   whichever flag was last seen before closing, frozen in place.
+4. It's polite about asking: it only checks Cruz Roja's site once every
+   5 minutes at most, no matter how many people are looking at the map,
+   and it doesn't ask at all outside staffed hours.
 
-### Not hammering Cruz Roja's server
+There's no database — just a small cache that remembers the last answer
+for a few minutes.
 
-Two rules, both in `functions/api/flags.js`, both backed by one KV
-namespace (`FLAG_CACHE`):
+## How it works, in more detail
 
-1. **Outside attended hours (roughly 10:00–20:30, Europe/Madrid, buffered
-   around the beaches' actual ~11:30–19:30 schedule) — skip Cruz Roja
-   entirely.** `functions/_lib/schedule.js` answers this from the clock
-   alone, no network call. Instead of showing "no data", the response is
-   whatever the flags last said before closing (`flags:last-known` in KV,
-   marked `frozen: true`) — falling back to a genuine
-   `"Fuera de horario"` only if nothing has ever been fetched (e.g. right
-   after a fresh deploy).
-2. **During attended hours, cache live results in KV for 5 minutes**
-   (`CACHE_TTL_SECONDS` in `flags.js`, key `flags:cache`). Whichever
-   visitor's request happens to miss the cache pays the ~1s Cruz Roja
-   round-trip and refills it for everyone else — and also updates
-   `flags:last-known` for the next time hours close. Nothing runs on a
-   schedule, so if nobody visits, nothing gets fetched.
+Two kinds of data, handled differently:
 
-### Sequence on page load
+- **Where the beaches are** (`public/beaches.json`) — name and coordinates
+  for all 13 beaches. This doesn't change day to day, so it was scraped
+  once and is just a committed file, not fetched live.
+- **What the flag says right now** — genuinely changes through the day,
+  so this part talks to Cruz Roja's site live, through
+  `functions/api/flags.js` (a small Cloudflare Pages Function). Cruz
+  Roja's site doesn't allow direct browser requests from other sites, so
+  this function exists to fetch it on the browser's behalf.
 
-1. `public/app.js` fetches `beaches.json` (instant, same-origin static
-   file) and drops a gray flag marker at each beach's location right away.
-2. It fetches `/api/flags` and recolors every marker + fills in the
-   popups once that resolves (near-instant on a cache hit, ~1s on a miss).
+That function follows two rules so it never hammers Cruz Roja's server:
 
-Cruz Roja's own HTML is old, fixed-layout markup (not a JSON API), so both
-the scrape script and the live endpoint just regex out the fields they
-need rather than pulling in an HTML parser.
+1. **Outside attended hours, skip Cruz Roja entirely.**
+   `functions/_lib/schedule.js` figures this out from the clock alone
+   (Europe/Madrid time, no network call needed). Instead of "no data",
+   it replies with whatever the flags said last, saved in a
+   never-expiring cache entry (`flags:last-known`) that gets updated
+   every time a real flag is fetched.
+2. **During attended hours, remember the answer for 5 minutes.** The
+   first visitor after those 5 minutes triggers a real fetch from Cruz
+   Roja and refills the cache; everyone else in that window gets the
+   cached answer instantly. Nothing runs on a timer — if nobody visits,
+   nothing gets fetched.
 
-## File map
+On page load: the map draws all 13 markers immediately (gray, from the
+static beach list), then asks `/api/flags` for the real colors and updates
+each marker once that answers.
+
+Cruz Roja's site is old-style HTML, not an API, so the code just looks
+for known text patterns in the page rather than using a full HTML parser.
+
+## Project layout
 
 ```
 public/
-  index.html        page shell, loads Leaflet + fonts from CDN, source link
-  app.js             map setup, marker rendering, the 2-request sequence above
-  style.css          header/legend/popup styling
-  beaches.json        static id/name/lat/lng, see "Updating the beach list"
+  index.html         page shell — Leaflet, fonts, the header/legend markup
+  app.js              map setup and marker rendering
+  style.css           all styling
+  beaches.json         static beach list, see "Updating the beach list"
 
 functions/
-  api/flags.js         GET /api/flags — the only backend route
-  _lib/cruzRoja.js      shared HTTP client for Cruz Roja's site
-  _lib/parseBeach.js    regex extraction from their HTML (flag color, medusas, etc.)
-  _lib/schedule.js       attended-hours check (Europe/Madrid, DST-aware)
+  api/flags.js         the one backend endpoint, GET /api/flags
+  _lib/cruzRoja.js      talks to Cruz Roja's site
+  _lib/parseBeach.js    reads flag color + details out of their HTML
+  _lib/schedule.js       "is it attended hours right now?"
 
 scripts/
-  scrape-beaches.js    run manually to (re)generate public/beaches.json
+  scrape-beaches.js    run manually to (re)build public/beaches.json
 ```
 
-`functions/_lib/` isn't a route — Cloudflare Pages ignores any file or
-folder starting with `_`, which is the convention for shared code that
-Functions import but shouldn't be reachable as its own URL.
+(`functions/_lib/` is shared code, not a URL — Cloudflare Pages skips
+routing any file or folder starting with `_`.)
 
 ## Running locally
 
 ```sh
 npm install
-npm run dev   # wrangler pages dev public → http://localhost:8788
+npm run dev   # http://localhost:8788
 ```
 
-The KV cache works locally too (wrangler emulates it on disk), using the
-placeholder id in `wrangler.toml` — no Cloudflare account needed for this.
+This also works offline-ish: the cache is emulated locally by wrangler,
+no Cloudflare account needed just to browse the code.
 
-## Deploying (Cloudflare Pages)
+## Deploying
 
-Already set up: logged into Cloudflare, `FLAG_CACHE` KV namespace created
-(its real id lives in `wrangler.toml`), Pages project `banderaplaya`
-created. To ship a change:
+Already set up for this project (Cloudflare login done, cache namespace
+created, its id is in `wrangler.toml`). To ship a change:
 
 ```sh
-npm run deploy   # wrangler pages deploy public
+npm run deploy
 ```
 
-This deploys the static site and `/api/flags` together. (Redoing this on a
-fresh clone/account: `wrangler login`, `wrangler kv namespace create
-FLAG_CACHE`, paste the printed id into `wrangler.toml`, `wrangler pages
-project create banderaplaya`, then `npm run deploy`.)
+Setting this up again from scratch (new clone, new Cloudflare account)
+would look like:
+
+```sh
+npx wrangler login
+npx wrangler kv namespace create FLAG_CACHE   # paste the id it prints into wrangler.toml
+npx wrangler pages project create banderaplaya
+npm run deploy
+```
 
 ### Custom domain (banderaplaya.es)
 
-Not yet attached — `banderaplaya.es`'s nameservers aren't pointed at
-Cloudflare yet, which has to happen at the registrar first. Once they are,
-attach the domain via the Cloudflare dashboard (Pages project → Custom
-domains → Add) or `wrangler pages domain add banderaplaya.es`.
+Not attached yet — the domain's nameservers need to point at Cloudflare
+first, which happens at the registrar. Once that's done: Cloudflare
+dashboard → Pages project → Custom domains → Add, or
+`wrangler pages domain add banderaplaya.es`.
 
 ## Updating the beach list
 
-Only needed if Cruz Roja adds/removes/moves a Santander beach:
+Only needed if Cruz Roja adds, removes, or moves a Santander beach:
 
 ```sh
-npm run scrape   # regenerates public/beaches.json
+npm run scrape
 ```
 
-The script warns instead of failing if the beach count changes, and
-sanity-checks every scraped coordinate against a Santander bounding box —
-if a beach's lat/lng falls outside it, the script throws rather than
-silently writing bad data (see "known upstream quirks" below for why that
-check exists).
+It double-checks every scraped coordinate falls within a Santander
+bounding box before writing anything, so a bad scrape fails loudly
+instead of silently corrupting the beach list.
 
 ## Repositioning the map
 
-The initial map view is two hardcoded constants at the top of
-`public/app.js`:
+Two constants at the top of `public/app.js`:
 
 ```js
 const MAP_CENTER = [43.47, -3.8];
 const MAP_ZOOM = 13;
 ```
 
-Edit them directly, or tell me new values and I'll drop them in.
+Edit directly, or hand me new numbers.
 
-## Known upstream quirks
+## Known quirks in Cruz Roja's data
 
-Cruz Roja's own site has some rough edges, worth knowing before touching
-the parsing code:
-
-- **Flag color tokens are inconsistent Spanish.** Filenames/alt text use
-  `amarill`/`roja` rather than the `amarillo`/`rojo` you'd expect, so
-  `parseBeach.js` normalizes by prefix match, not exact match.
-- **Beach id 1198 ("Bikinis II") has a malformed coordinate** in Cruz
-  Roja's own HTML (extra stray dots in the latitude). `scrape-beaches.js`
-  has a documented manual override for it.
-- **Outside attended hours, the flag is "blanca"** (no data) for every
-  beach — confirmed by hand. `functions/_lib/schedule.js` predicts this
-  from the clock instead of asking Cruz Roja to find out, and the app
-  shows the frozen last-known flag instead of that "no data" state.
+- Their flag-color text is inconsistent (`amarill`/`roja` instead of the
+  expected `amarillo`/`rojo`), so the parsing matches by prefix.
+- One beach ("Bikinis II", id 1198) has a broken coordinate in Cruz
+  Roja's own page. There's a documented manual fix for it in
+  `scrape-beaches.js`.
+- Outside attended hours their flag is genuinely blank ("no info") —
+  confirmed by hand, which is why this project predicts that from the
+  clock instead of asking.
 
 ## Source
 
-Data comes from Cruz Roja Española's public beach-status tool, filtered to
-Santander:
-[listaPlayas.do?...municipio=SANTANDER...](https://www.cruzroja.es/appjv/consPlayas/listaPlayas.do?autonomia=Cantabria&autonomia_id=6&provincia=CANTABRIA&provincia_id=39&municipio=SANTANDER&municipio_id=75&playa=&action=noadaptadas).
-The same link is in the app's legend.
+Cruz Roja España's public beach-status tool, filtered to Santander:
+[cruzroja.es — listaPlayas.do](https://www.cruzroja.es/appjv/consPlayas/listaPlayas.do?autonomia=Cantabria&autonomia_id=6&provincia=CANTABRIA&provincia_id=39&municipio=SANTANDER&municipio_id=75&playa=&action=noadaptadas).
+Same link is in the app's legend.
 
 ## Scope
 
-Santander only (13 beaches). Expanding to other municipios means storing a
-`municipio`/`provincia`/`autonomia` per beach in `beaches.json` and passing
-it through in `functions/_lib/cruzRoja.js` instead of the current
-hardcoded Santander constants.
+Santander only, 13 beaches. Covering other towns would mean storing each
+beach's own municipio/provincia/autonomia in `beaches.json` and using
+that instead of the Santander constants currently hardcoded in
+`functions/_lib/cruzRoja.js`.

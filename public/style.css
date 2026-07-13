@@ -1,8 +1,10 @@
 :root {
-  --sun: #ff9f1c;
-  --coral: #ff6b6b;
-  --sand: #ffd97d;
-  --sea: #17a2b8;
+  --sun-glow: #ffe4a3;
+  --sky-deep: #0a6e8f;
+  --water: #1fa2b8;
+  --water-light: #6fd4c9;
+  --sand: #f2d9a8;
+  --sand-light: #f8ecce;
   --sea-deep: #0a5c73;
   --ink: #1c3d4a;
 }
@@ -25,12 +27,20 @@ body {
 }
 
 #header {
+  position: relative;
   flex: 0 0 auto;
-  padding: 14px 24px;
-  background: linear-gradient(90deg, var(--coral) 0%, var(--sun) 45%, var(--sea) 100%);
+  overflow: hidden;
+  padding: 16px 24px 26px;
+  background: radial-gradient(circle at 12% 20%, var(--sun-glow) 0%, rgba(255, 228, 163, 0) 40%),
+    linear-gradient(115deg, var(--sky-deep) 0%, var(--water) 40%, var(--water-light) 70%, var(--sand) 100%);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
   z-index: 1000;
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
 }
 
 #header h1 {
@@ -38,7 +48,7 @@ body {
   font-family: "Baloo 2", "Nunito Sans", system-ui, sans-serif;
   font-weight: 800;
   font-size: clamp(24px, 4vw, 36px);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 #header p {
@@ -46,6 +56,21 @@ body {
   font-size: 14px;
   font-weight: 600;
   opacity: 0.95;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.header-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 26px;
+  display: block;
+}
+
+.header-wave path {
+  fill: var(--sand-light);
 }
 
 #map {
