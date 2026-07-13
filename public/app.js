@@ -51,6 +51,14 @@ function popupContent(beach) {
 
   const title = document.createElement("h2");
   title.textContent = beach.name;
+  content.append(title);
+
+  if (beach.municipio || beach.provincia) {
+    const subtitle = document.createElement("p");
+    subtitle.className = "popup-subtitle";
+    subtitle.textContent = [beach.municipio, beach.provincia].filter(Boolean).join(", ");
+    content.append(subtitle);
+  }
 
   const status = beach.status || "unknown";
   const badge = document.createElement("p");
@@ -58,14 +66,7 @@ function popupContent(beach) {
   badge.textContent = beach.label ?? "Cargando…";
   badge.setAttribute("aria-label", `Bandera: ${badge.textContent}`);
 
-  content.append(title, badge);
-
-  if (beach.frozen) {
-    const notice = document.createElement("p");
-    notice.className = "popup-notice";
-    notice.textContent = "Fuera de horario · última bandera conocida";
-    content.append(notice);
-  }
+  content.append(badge);
 
   const details = document.createElement("dl");
   details.className = "popup-details";
@@ -85,7 +86,7 @@ function popupContent(beach) {
 
   const directions = document.createElement("a");
   directions.className = "directions-link";
-  directions.href = `https://www.google.com/maps/dir/?api=1&destination=${beach.lat},${beach.lng}`;
+  directions.href = `https://www.google.com/maps/dir/?api=1&destination=${beach.location.lat},${beach.location.lng}`;
   directions.target = "_blank";
   directions.rel = "noopener";
   directions.textContent = "Cómo llegar ↗";
@@ -123,20 +124,6 @@ function saveMapView(map) {
   }
 }
 
-function updateMarker(marker, beach) {
-  const label = `${beach.name} — bandera ${beach.label ?? "cargando"}`;
-  marker.setIcon(flagIcon(STATUS_COLORS[beach.status] || STATUS_COLORS.unknown));
-  marker.setPopupContent(popupContent(beach));
-  marker.options.title = label;
-  marker.options.alt = label;
-
-  const element = marker.getElement();
-  if (element) {
-    element.setAttribute("aria-label", label);
-    element.setAttribute("title", label);
-  }
-}
-
 function setupLegend() {
   const toggle = document.querySelector(".legend-toggle");
   if (!toggle) return;
@@ -155,42 +142,37 @@ async function main() {
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(map);
 
-  const beaches = await fetch("beaches.json").then((r) => r.json());
+  const { beaches } = await fetch("/api/beaches").then((r) => r.json());
+  // A beach only has coordinates once worker-scraper has fetched it at
+  // least once (or never, for the handful Cruz Roja itself has no map data
+  // for) — no marker to place until then.
+  const located = beaches.filter((beach) => beach.location);
 
   const savedView = loadSavedMapView();
   if (savedView) {
     map.setView([savedView.lat, savedView.lng], savedView.zoom);
-  } else {
+  } else if (located.length) {
     map.fitBounds(
-      L.latLngBounds(beaches.map((beach) => [beach.lat, beach.lng])),
+      L.latLngBounds(located.map((beach) => [beach.location.lat, beach.location.lng])),
       { padding: [32, 32], maxZoom: 14 }
     );
+  } else {
+    // Cold cache (e.g. right after a deploy, before the first scrape tick).
+    map.setView([40.0, -3.7], 6);
   }
   map.on("moveend", () => saveMapView(map));
 
-  const markers = new Map();
-  for (const beach of beaches) {
-    const initialLabel = `${beach.name} — bandera cargando`;
-    const marker = L.marker([beach.lat, beach.lng], {
-      icon: flagIcon(STATUS_COLORS.unknown),
-      title: initialLabel,
-      alt: initialLabel,
+  for (const beach of located) {
+    const label = `${beach.name} — bandera ${beach.label ?? "cargando"}`;
+    const marker = L.marker([beach.location.lat, beach.location.lng], {
+      icon: flagIcon(STATUS_COLORS[beach.status] || STATUS_COLORS.unknown),
+      title: label,
+      alt: label,
       keyboard: true,
     })
       .addTo(map)
       .bindPopup(popupContent(beach));
-    marker.getElement()?.setAttribute("aria-label", initialLabel);
-    markers.set(beach.id, marker);
-  }
-
-  const flags = await fetch("/api/flags")
-    .then((r) => r.json())
-    .catch(() => []);
-
-  for (const data of flags) {
-    const marker = markers.get(data.id);
-    if (!marker) continue;
-    updateMarker(marker, data);
+    marker.getElement()?.setAttribute("aria-label", label);
   }
 }
 
