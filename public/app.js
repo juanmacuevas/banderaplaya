@@ -30,6 +30,22 @@ function flagIcon(color, hasJellyfish) {
   });
 }
 
+const MONTHS_ES = [
+  "ene", "feb", "mar", "abr", "may", "jun",
+  "jul", "ago", "sep", "oct", "nov", "dic",
+];
+
+// Cruz Roja's dates come as "DD-MM-YYYY" (Cobertura) or "DD/MM/YYYY"
+// (campaña) — neither reads naturally, so this reformats to "12 jun".
+// Year is dropped: it's always "this season", never worth the clutter.
+function formatDayMonth(dateStr) {
+  const m = dateStr?.match(/^(\d{1,2})[-/](\d{1,2})[-/]\d{2,4}$/);
+  if (!m) return dateStr ?? null;
+  const day = Number(m[1]);
+  const month = MONTHS_ES[Number(m[2]) - 1];
+  return month ? `${day} ${month}` : dateStr;
+}
+
 function addDetail(list, label, value) {
   if (value == null || value === "") return;
 
@@ -82,7 +98,7 @@ function popupContent(beach) {
     details,
     "Temporada",
     beach.coberturaDesde && beach.coberturaHasta
-      ? `${beach.coberturaDesde} – ${beach.coberturaHasta}`
+      ? `${formatDayMonth(beach.coberturaDesde)} – ${formatDayMonth(beach.coberturaHasta)}`
       : null
   );
   if (details.children.length) content.append(details);
@@ -111,7 +127,7 @@ function popupContent(beach) {
   if (beach.campana) {
     const campaign = document.createElement("p");
     campaign.className = "popup-campaign";
-    campaign.textContent = `${beach.campana.nombre}: ${beach.campana.desde} – ${beach.campana.hasta}`;
+    campaign.textContent = `${beach.campana.nombre}: ${formatDayMonth(beach.campana.desde)} – ${formatDayMonth(beach.campana.hasta)}`;
     content.append(campaign);
   }
 
