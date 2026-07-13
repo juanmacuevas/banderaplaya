@@ -1,6 +1,4 @@
-// Hand-tuned map position — edit these two values to reposition/rezoom.
-const MAP_CENTER = [43.47, -3.8];
-const MAP_ZOOM = 13;
+const MAP_VIEW_STORAGE_KEY = "banderaplaya:map-view:v1";
 
 const STATUS_COLORS = {
   verde: "#2ecc71",
@@ -34,29 +32,123 @@ function yesNo(value) {
   return null;
 }
 
-function popupText(beach) {
-  const lines = [`<strong>${beach.name}</strong>`];
-  lines.push(`Bandera: ${beach.label ?? "Cargando…"}`);
+function addDetail(list, label, value) {
+  if (value == null || value === "") return;
+
+  const row = document.createElement("div");
+  row.className = "popup-detail";
+  const term = document.createElement("dt");
+  const description = document.createElement("dd");
+  term.textContent = label;
+  description.textContent = value;
+  row.append(term, description);
+  list.append(row);
+}
+
+function popupContent(beach) {
+  const content = document.createElement("article");
+  content.className = "beach-popup";
+
+  const title = document.createElement("h2");
+  title.textContent = beach.name;
+
+  const status = beach.status || "unknown";
+  const badge = document.createElement("p");
+  badge.className = `status-badge status-${status}`;
+  badge.textContent = beach.label ?? "Cargando…";
+  badge.setAttribute("aria-label", `Bandera: ${badge.textContent}`);
+
+  content.append(title, badge);
 
   if (beach.frozen) {
-    lines.push(`<em>Fuera de horario — última bandera conocida</em>`);
+    const notice = document.createElement("p");
+    notice.className = "popup-notice";
+    notice.textContent = "Fuera de horario · última bandera conocida";
+    content.append(notice);
   }
 
-  const medusas = yesNo(beach.medusas);
-  if (medusas) lines.push(`Medusas: ${medusas}`);
+  const details = document.createElement("dl");
+  details.className = "popup-details";
+  addDetail(details, "Medusas", yesNo(beach.medusas));
+  addDetail(details, "Horario", beach.horario);
+  addDetail(details, "Ayuda al baño", yesNo(beach.servicioAyudaBano));
+  addDetail(details, "Atención", beach.atencion);
+  addDetail(details, "Torres", beach.torresVigilancia);
+  if (details.children.length) content.append(details);
 
-  if (beach.horario) lines.push(`Horario: ${beach.horario}`);
+  if (beach.observaciones) {
+    const observations = document.createElement("p");
+    observations.className = "popup-observations";
+    observations.textContent = beach.observaciones;
+    content.append(observations);
+  }
 
-  const ayuda = yesNo(beach.servicioAyudaBano);
-  if (ayuda) lines.push(`Ayuda al baño: ${ayuda}`);
+  const directions = document.createElement("a");
+  directions.className = "directions-link";
+  directions.href = `https://www.google.com/maps/dir/?api=1&destination=${beach.lat},${beach.lng}`;
+  directions.target = "_blank";
+  directions.rel = "noopener";
+  directions.textContent = "Cómo llegar ↗";
+  content.append(directions);
 
-  if (beach.observaciones) lines.push(`Obs: ${beach.observaciones}`);
+  return content;
+}
 
-  return lines.join("<br>");
+function loadSavedMapView() {
+  try {
+    const view = JSON.parse(localStorage.getItem(MAP_VIEW_STORAGE_KEY));
+    const valid =
+      Number.isFinite(view?.lat) &&
+      Number.isFinite(view?.lng) &&
+      Number.isFinite(view?.zoom) &&
+      view.lat >= -90 &&
+      view.lat <= 90 &&
+      view.lng >= -180 &&
+      view.lng <= 180;
+    return valid ? view : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMapView(map) {
+  try {
+    const center = map.getCenter();
+    localStorage.setItem(
+      MAP_VIEW_STORAGE_KEY,
+      JSON.stringify({ lat: center.lat, lng: center.lng, zoom: map.getZoom() })
+    );
+  } catch {
+    // The map remains fully usable when browser storage is unavailable.
+  }
+}
+
+function updateMarker(marker, beach) {
+  const label = `${beach.name} — bandera ${beach.label ?? "cargando"}`;
+  marker.setIcon(flagIcon(STATUS_COLORS[beach.status] || STATUS_COLORS.unknown));
+  marker.setPopupContent(popupContent(beach));
+  marker.options.title = label;
+  marker.options.alt = label;
+
+  const element = marker.getElement();
+  if (element) {
+    element.setAttribute("aria-label", label);
+    element.setAttribute("title", label);
+  }
+}
+
+function setupLegend() {
+  const toggle = document.querySelector(".legend-toggle");
+  if (!toggle) return;
+
+  toggle.addEventListener("click", () => {
+    toggle.setAttribute("aria-expanded", String(toggle.getAttribute("aria-expanded") !== "true"));
+  });
 }
 
 async function main() {
-  const map = L.map("map").setView(MAP_CENTER, MAP_ZOOM);
+  setupLegend();
+  const map = L.map("map");
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -65,13 +157,29 @@ async function main() {
 
   const beaches = await fetch("beaches.json").then((r) => r.json());
 
+  const savedView = loadSavedMapView();
+  if (savedView) {
+    map.setView([savedView.lat, savedView.lng], savedView.zoom);
+  } else {
+    map.fitBounds(
+      L.latLngBounds(beaches.map((beach) => [beach.lat, beach.lng])),
+      { padding: [32, 32], maxZoom: 14 }
+    );
+  }
+  map.on("moveend", () => saveMapView(map));
+
   const markers = new Map();
   for (const beach of beaches) {
+    const initialLabel = `${beach.name} — bandera cargando`;
     const marker = L.marker([beach.lat, beach.lng], {
       icon: flagIcon(STATUS_COLORS.unknown),
+      title: initialLabel,
+      alt: initialLabel,
+      keyboard: true,
     })
       .addTo(map)
-      .bindPopup(popupText(beach));
+      .bindPopup(popupContent(beach));
+    marker.getElement()?.setAttribute("aria-label", initialLabel);
     markers.set(beach.id, marker);
   }
 
@@ -82,8 +190,7 @@ async function main() {
   for (const data of flags) {
     const marker = markers.get(data.id);
     if (!marker) continue;
-    marker.setIcon(flagIcon(STATUS_COLORS[data.status] || STATUS_COLORS.unknown));
-    marker.setPopupContent(popupText(data));
+    updateMarker(marker, data);
   }
 }
 

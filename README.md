@@ -129,16 +129,16 @@ It double-checks every scraped coordinate falls within a Santander
 bounding box before writing anything, so a bad scrape fails loudly
 instead of silently corrupting the beach list.
 
-## Repositioning the map
+## Initial and returning map position
 
-Two constants at the top of `public/app.js`:
+On a visitor's first load, the map automatically fits all Santander beaches
+on screen. After they pan or zoom, that view is saved in their browser's
+`localStorage` and restored on later visits. No location or map preference is
+sent to the server.
 
-```js
-const MAP_CENTER = [43.47, -3.8];
-const MAP_ZOOM = 13;
-```
-
-Edit directly, or hand me new numbers.
+To simulate a first visit while developing, remove the
+`banderaplaya:map-view:v1` local-storage entry in the browser's developer
+tools.
 
 ## Known quirks in Cruz Roja's data
 
